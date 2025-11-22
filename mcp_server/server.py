@@ -153,7 +153,7 @@ async def handle_scan_and_exploit_pr(arguments: Dict[str, Any]) -> List[TextCont
     fixes = await fix_generator.generate_fixes_batch(vulnerabilities, code_context)
     
     # Step 5: Format and post report
-    report = await github_integration.format_security_report(vulnerabilities, exploits)
+    report = await format_security_report(vulnerabilities, exploits)
     
     # Add fixes to report
     if fixes:

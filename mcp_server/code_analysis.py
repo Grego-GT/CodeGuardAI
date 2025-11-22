@@ -15,9 +15,14 @@ class VulnerabilityScanner:
         self.patterns = {
             'sql_injection': [
                 r'execute\s*\(\s*["\'].*%s.*["\']',  # String formatting in SQL
-                r'execute\s*\(\s*f["\']',  # f-strings in SQL
+                r'execute\s*\(\s*f["\']',  # f-strings in SQL execute()
+                r'=\s*f["\'].*SELECT.*\{',  # f-string with SELECT and variable interpolation
+                r'=\s*f["\'].*INSERT.*\{',  # f-string with INSERT and variable interpolation
+                r'=\s*f["\'].*UPDATE.*\{',  # f-string with UPDATE and variable interpolation
+                r'=\s*f["\'].*DELETE.*\{',  # f-string with DELETE and variable interpolation
                 r'query\s*\(\s*["\'].*\+.*["\']',  # String concatenation
-                r'execute\s*\(\s*["\'].*\{.*\}.*["\']',  # Format strings
+                r'execute\s*\(\s*["\'].*\{.*\}.*["\']',  # Format strings in execute()
+                r'f["\'].*WHERE.*\{.*\}',  # f-string with WHERE clause and interpolation
             ],
             'xss': [
                 r'innerHTML\s*=',  # Direct innerHTML assignment
@@ -50,19 +55,24 @@ class VulnerabilityScanner:
         """
         vulnerabilities = []
         lines = code.split('\n')
+        seen_vulnerabilities = set()  # Track (line_num, vuln_type) to avoid duplicates
         
         for vuln_type, patterns in self.patterns.items():
             for pattern in patterns:
                 for line_num, line in enumerate(lines, start=1):
                     if re.search(pattern, line, re.IGNORECASE):
-                        vulnerabilities.append({
-                            'type': vuln_type,
-                            'severity': self._get_severity(vuln_type),
-                            'line': line_num,
-                            'file': file_path,
-                            'code_snippet': line.strip(),
-                            'description': self._get_description(vuln_type),
-                        })
+                        # Avoid duplicate vulnerabilities on the same line
+                        key = (line_num, vuln_type)
+                        if key not in seen_vulnerabilities:
+                            seen_vulnerabilities.add(key)
+                            vulnerabilities.append({
+                                'type': vuln_type,
+                                'severity': self._get_severity(vuln_type),
+                                'line': line_num,
+                                'file': file_path,
+                                'code_snippet': line.strip(),
+                                'description': self._get_description(vuln_type),
+                            })
         
         return vulnerabilities
     
