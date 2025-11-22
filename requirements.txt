@@ -1,0 +1,15 @@
+# Core dependencies
+mcp
+openai
+e2b-code-interpreter
+httpx
+
+# Web framework for demo
+streamlit
+
+# Testing
+pytest
+pytest-asyncio
+
+# Utilities
+python-dotenv
