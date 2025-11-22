@@ -41,7 +41,7 @@ Streamlit Dashboard (Observability)
 ## Quick Start
 
 1. **Install dependencies**: `pip install -r requirements.txt`
-2. **Configure API keys**: Create `config.json` with your E2B API key and GitHub token
+2. **Configure API keys**: Copy `config.json.example` to `config.json` and add your API keys
 3. **Start GitHub MCP Server**: `docker-compose up -d`
 4. **Launch Dashboard**: `streamlit run dashboard.py`
 

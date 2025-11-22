@@ -206,8 +206,11 @@ query = "SELECT * FROM users WHERE username='" + username + "' AND password='" +
 Payload: `' OR '1'='1' --`
 Result: Authentication bypass confirmed
 
-**Recommendation:**
-Use parameterized queries with `?` placeholders.
+**Fix Suggestion:**
+```python
+# Use parameterized queries
+cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+```
 
 ---
 ...
@@ -334,6 +337,7 @@ Use this checklist to ensure complete testing:
 - [ ] Security report generated
 - [ ] Report posted to GitHub PR
 - [ ] Report includes line numbers
+- [ ] Report includes fix suggestions with code snippets
 - [ ] Report includes remediation advice
 - [ ] Report properly formatted (markdown)
 

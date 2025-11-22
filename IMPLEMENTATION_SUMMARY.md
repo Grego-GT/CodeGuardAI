@@ -8,24 +8,27 @@ A complete sandbox-native security agent architecture where the agent runs **ins
 
 ### Core Components (All New)
 
-1. **`sandbox_agent/agent.py`** (370 lines)
+1. **`sandbox_agent/agent.py`** (384 lines)
    - Security agent that runs entirely inside E2B sandbox
    - Includes MCP client for GitHub integration
    - Vulnerability scanner with pattern matching
    - Exploit executor for proving vulnerabilities
+   - Fix suggestion generator for each vulnerability type
    - Report generator and poster
 
-2. **`orchestrator.py`** (200 lines)
+2. **`orchestrator.py`** (377 lines)
    - Manages E2B sandbox lifecycle
-   - Deploys agent code to sandbox
+   - Deploys agent code to sandbox (using repr() for safe escaping)
+   - Installs dependencies via subprocess.run()
    - Streams logs back to dashboard
    - Handles cleanup and error recovery
 
-3. **`dashboard.py`** (280 lines)
+3. **`dashboard.py`** (300 lines)
    - Streamlit-based observability dashboard
    - Real-time monitoring of sandbox execution
    - Live log streaming
    - Analysis history tracking
+   - Default repository values (Grego-GT/CodeGuardAI)
    - Beautiful UI for demos
 
 4. **`docker-compose.yml`**

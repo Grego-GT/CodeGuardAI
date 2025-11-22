@@ -141,6 +141,7 @@ GitHub PR Created
   - XSS patterns
   - Command injection patterns
   - Path traversal patterns
+  - Generates fix suggestions for each vulnerability type
 
 - `ExploitExecutor`: Generate and execute exploits
   - Template-based exploit generation
@@ -164,7 +165,7 @@ async def analyze_pr(repo_owner, repo_name, pr_number):
     1. Fetch PR files via MCP client
     2. Scan files for vulnerabilities
     3. Execute exploits to prove them
-    4. Generate security report
+    4. Generate security report with fix suggestions
     5. Post report back via MCP
     6. Return results
 ```

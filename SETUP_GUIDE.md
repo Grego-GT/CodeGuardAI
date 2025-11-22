@@ -88,7 +88,13 @@ pip install -r requirements.txt
 
 ### 2. Configure API Keys
 
-Create or update `config.json`:
+Copy the example config file and add your API keys:
+
+```bash
+cp config.json.example config.json
+```
+
+Then edit `config.json` and replace the placeholder values with your actual API keys:
 
 ```json
 {
@@ -96,6 +102,8 @@ Create or update `config.json`:
   "github_token": "your_github_token_here"
 }
 ```
+
+**Note**: `config.json` is gitignored and will never be committed to the repository.
 
 ### 3. Start GitHub MCP Server
 
@@ -125,8 +133,8 @@ The dashboard will open at `http://localhost:8501`
 1. Open the dashboard at `http://localhost:8501`
 2. Go to the **"New Analysis"** tab
 3. Enter:
-   - Repository Owner (e.g., `octocat`)
-   - Repository Name (e.g., `hello-world`)
+   - Repository Owner (default: `Grego-GT`)
+   - Repository Name (default: `CodeGuardAI`)
    - PR Number (e.g., `1`)
 4. Click **"Launch Analysis"**
 5. Switch to the **"Live Monitor"** tab to watch progress in real-time

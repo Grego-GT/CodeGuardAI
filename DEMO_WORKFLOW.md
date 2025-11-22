@@ -151,22 +151,26 @@ CodeGuard AI will:
 #### 🔴 api/endpoints/database.py
 - SQL Injection (4 instances) - HIGH severity
 - Lines: 16, 31, 44, 57
+- **Fix Suggestion:** Use parameterized queries
 
 #### 🔴 api/endpoints/search.py
 - Cross-Site Scripting (6 instances) - MEDIUM/HIGH severity
 - Lines: 14, 22, 40, 48, 57, 73, 87
+- **Fix Suggestion:** Escape user input or use safe rendering
 
 #### 🔴 api/endpoints/system.py
 - Command Injection (8 instances) - CRITICAL severity
 - Lines: 15, 26, 36, 49, 60, 71, 81, 90
+- **Fix Suggestion:** Use subprocess with list arguments
 
 #### 🔴 api/endpoints/files.py
 - Path Traversal (9 instances) - HIGH severity
 - Lines: 14, 26, 38, 48, 62, 76, 88, 97, 112
+- **Fix Suggestion:** Validate and sanitize file paths
 
 ---
 
-[Detailed findings for each vulnerability...]
+[Detailed findings for each vulnerability with code snippets and fix suggestions...]
 ```
 
 ---
