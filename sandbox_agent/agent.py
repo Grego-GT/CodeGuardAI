@@ -71,6 +71,7 @@ class VulnerabilityScanner:
                                 'file': file_path,
                                 'code_snippet': line.strip(),
                                 'description': self._get_description(vuln_type),
+                                'fix_suggestion': self._get_fix_suggestion(vuln_type),
                             })
 
         return vulnerabilities
@@ -92,6 +93,28 @@ class VulnerabilityScanner:
             'path_traversal': 'Path traversal vulnerability',
         }
         return descriptions.get(vuln_type, 'Security vulnerability detected')
+
+    def _get_fix_suggestion(self, vuln_type: str) -> str:
+        """Get a simple code snippet showing how to fix the vulnerability."""
+        fixes = {
+            'sql_injection': """# Use parameterized queries
+cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))""",
+            'xss': """# Escape user input or use safe rendering
+from markupsafe import escape
+safe_message = escape(user_input)
+document.getElementById('content').textContent = safe_message""",
+            'command_injection': """# Use subprocess with list arguments, not shell=True
+import subprocess
+result = subprocess.run(['python', 'process.py', data], capture_output=True, text=True)""",
+            'path_traversal': """# Validate and sanitize file paths
+import os
+base_path = "/safe/directory"
+user_file = os.path.basename(user_input)  # Remove path components
+safe_path = os.path.join(base_path, user_file)
+if not safe_path.startswith(base_path):
+    raise ValueError("Invalid path")""",
+        }
+        return fixes.get(vuln_type, '# Use secure coding practices and validate all user input')
 
 
 class ExploitExecutor:
@@ -308,6 +331,8 @@ class SecurityAgent:
             report += f"**File:** `{vuln['file']}:{vuln['line']}`\n\n"
             report += f"**Code:**\n```python\n{vuln['code_snippet']}\n```\n\n"
             report += f"**Description:** {vuln['description']}\n\n"
+            if vuln.get('fix_suggestion'):
+                report += f"**Fix Suggestion:**\n```python\n{vuln['fix_suggestion']}\n```\n\n"
 
         report += "## 🧪 Exploit Testing Results\n\n"
         successful_exploits = sum(1 for e in exploits if e.get('exploit_successful'))
