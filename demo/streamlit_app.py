@@ -5,6 +5,8 @@ Simple Streamlit UI to demo vulnerability scan and exploit.
 import streamlit as st
 import asyncio
 import sys
+import json
+import os
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -14,6 +16,33 @@ from mcp_server.code_analysis import VulnerabilityScanner
 from mcp_server.e2b_executor import E2BExecutor
 from mcp_server.fix_generator import FixGenerator
 
+
+def load_config():
+    """Load configuration from config.json or environment variables."""
+    config_path = Path(__file__).parent.parent / "config.json"
+    config = {}
+    
+    # Try to load from config.json
+    if config_path.exists():
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        except Exception:
+            pass
+    
+    # Fallback to environment variables
+    if not config.get('e2b_api_key'):
+        config['e2b_api_key'] = os.getenv('E2B_API_KEY', '')
+    if not config.get('openai_api_key'):
+        config['openai_api_key'] = os.getenv('OPENAI_API_KEY', '')
+    if not config.get('github_token'):
+        config['github_token'] = os.getenv('GITHUB_TOKEN', '')
+    
+    return config
+
+
+# Load config
+config = load_config()
 
 # Page config
 st.set_page_config(
@@ -32,8 +61,25 @@ if 'scanner' not in st.session_state:
 # Sidebar for API keys
 with st.sidebar:
     st.header("Configuration")
-    e2b_key = st.text_input("E2B API Key", type="password", help="Required for exploit testing")
-    openai_key = st.text_input("OpenAI API Key", type="password", help="Required for fix generation")
+    # Pre-populate from config.json, but allow manual override
+    default_e2b = config.get('e2b_api_key', '')
+    default_openai = config.get('openai_api_key', '')
+    
+    e2b_key = st.text_input(
+        "E2B API Key", 
+        value=default_e2b,
+        type="password", 
+        help="Required for exploit testing. Loaded from config.json if available."
+    )
+    openai_key = st.text_input(
+        "OpenAI API Key", 
+        value=default_openai,
+        type="password", 
+        help="Required for fix generation. Loaded from config.json if available."
+    )
+    
+    if default_e2b or default_openai:
+        st.info("ℹ️ API keys loaded from config.json")
     
     st.markdown("---")
     st.markdown("### Sample Vulnerable Code")

@@ -1,4 +1,0 @@
-"""
-CodeGuard AI Tests
-"""
-

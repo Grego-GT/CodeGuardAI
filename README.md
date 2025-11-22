@@ -1,127 +1,174 @@
-# CodeGuardAI
-CodeGuard AI is an MCP-powered security agent that scans GitHub pull requests for vulnerabilities, uses E2B sandboxes to safely execute live exploits proving these vulnerabilities, and automatically generates secure code fixes with explanations, delivering real-time, actionable security insights to developers and enterprises.
+# CodeGuard AI 🛡️
+
+> **Security agents running inside E2B sandboxes, connecting to real-world tools via Docker MCP servers**
+
+CodeGuard AI is a sandbox-native security agent that scans GitHub pull requests for vulnerabilities, safely executes exploits **inside E2B sandboxes**, and posts detailed security reports—all while using **MCP clients** to connect to real GitHub tools via Docker MCP Hub.
 
 ![CodeGuardAI Diagram](/assets/CodeGuardAI_Diagram.png)
 
-## Features
+## 🌟 Hackathon Features
 
-- 🔍 **Automated Vulnerability Scanning**: Detects common security vulnerabilities (SQL injection, XSS, command injection, path traversal)
-- 🧪 **Live Exploit Testing**: Uses E2B sandboxes to safely prove vulnerabilities with real exploits
-- 🤖 **AI-Powered Fix Generation**: Leverages OpenAI API to generate secure code fixes with explanations
-- 📊 **Comprehensive Security Reports**: Automatically posts detailed reports to GitHub pull requests
-- 🎯 **MCP Integration**: Exposes tools via MCP server for integration with other systems
+- 🏃 **Agents Inside Sandboxes**: Security agent runs entirely within E2B microVMs
+- 🔌 **MCP Client Integration**: Agent uses MCP clients to connect to GitHub MCP server
+- 🐳 **Docker MCP Hub**: Uses pre-built GitHub MCP server from Docker MCP Hub
+- 🔍 **Automated Vulnerability Scanning**: Detects SQL injection, XSS, command injection, path traversal
+- 🧪 **Safe Exploit Testing**: Proves vulnerabilities with real exploits in isolated environment
+- 📊 **Real-time Observability**: Streamlit dashboard shows live progress and logs
+- 📝 **GitHub Integration**: Posts security reports directly to pull requests
 
-## Project Structure
+## 🏗️ Architecture
+
+### Sandbox-Native Design
 
 ```
-codeguard-ai/
-├── mcp_server/                    # Core MCP server components
-│   ├── code_analysis.py           # Vulnerability detection logic
-│   ├── e2b_executor.py            # E2B sandbox integration
-│   ├── github_integration.py      # GitHub API integration
-│   ├── fix_generator.py           # OpenAI API integration
-│   └── server.py                  # Main MCP server
-├── demo/                          # Demo application
-│   ├── streamlit_app.py           # Streamlit UI for testing
-│   └── sample_vulnerable_code.py  # Sample code for testing
-├── tests/                         # Test suite
-└── config.example.json            # Configuration template
+Streamlit Dashboard (Observability)
+         ↓
+    Orchestrator
+         ↓
+   E2B Sandbox ←─── Agent runs INSIDE
+         │
+         │ MCP Client
+         ↓
+   GitHub MCP Server (Docker)
+         ↓
+    GitHub API
 ```
 
-## Setup
+**Key Innovation**: The agent runs **inside** the E2B sandbox and uses an **MCP client** to connect to external tools (GitHub MCP), rather than having an external MCP server orchestrate sandboxes.
+
+## 📁 Project Structure
+
+```
+CodeGuardAI/
+├── sandbox_agent/              # Agent that runs INSIDE E2B sandbox
+│   ├── agent.py               # Main agent with MCP client
+│   └── __init__.py
+├── orchestrator.py             # Launches agents in E2B sandboxes
+├── dashboard.py                # Streamlit observability dashboard
+├── docker-compose.yml          # GitHub MCP server setup
+├── config.json                 # API keys configuration
+├── SETUP_GUIDE.md             # Complete setup instructions
+├── ARCHITECTURE.md            # Detailed architecture docs
+└── mcp_server/                # (Legacy - external MCP architecture)
+```
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.10 or higher
+- Docker and Docker Compose
 - E2B API key ([get one here](https://e2b.dev))
-- OpenAI API key ([get one here](https://platform.openai.com/api-keys))
-- GitHub Personal Access Token (optional, for PR integration)
+- GitHub Personal Access Token ([create one here](https://github.com/settings/tokens))
 
-### Installation
+### Installation (5 minutes)
 
-1. Clone the repository:
+1. **Clone and setup**
 ```bash
 git clone <repository-url>
 cd CodeGuardAI
-```
 
-2. Create a virtual environment:
-```bash
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-3. Install dependencies:
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-4. Configure the application:
-```bash
-cp config.example.json config.json
-```
+2. **Configure API keys**
 
-Edit `config.json` and add your API keys:
+Create `config.json`:
 ```json
 {
-  "e2b_api_key": "your_e2b_api_key",
-  "openai_api_key": "your_openai_api_key",
-  "github_token": "your_github_token"
+  "e2b_api_key": "your_e2b_api_key_here",
+  "github_token": "your_github_token_here"
 }
 ```
 
-## Usage
-
-### Running the Demo (Streamlit)
-
-The easiest way to test CodeGuard AI is using the Streamlit demo:
-
+3. **Start GitHub MCP Server**
 ```bash
-streamlit run demo/streamlit_app.py
+export GITHUB_TOKEN="your_github_token_here"
+docker-compose up -d
 ```
 
-This will open a web interface where you can:
-- Paste code or load the sample vulnerable code
-- Scan for vulnerabilities
-- Test exploits (requires E2B API key)
-- Generate fixes (requires OpenAI API key)
-
-### Running the MCP Server
-
-To run the MCP server:
-
+4. **Launch Dashboard**
 ```bash
-python -m mcp_server.server
+streamlit run dashboard.py
 ```
 
-The server exposes two main tools:
-- `scan_pr`: Scan a GitHub PR for vulnerabilities
-- `scan_and_exploit_pr`: Full workflow (scan, exploit, generate fixes, post report)
+Open http://localhost:8501 and you're ready! 🎉
 
-### Using via MCP Client
+## 📖 Usage
 
-Once the MCP server is running, you can call it from an MCP client:
+### Running Security Analysis
 
-```python
-# Example: Scan a PR
-result = await client.call_tool("scan_pr", {
-    "repo_owner": "owner",
-    "repo_name": "repo",
-    "pr_number": 123
-})
-```
+1. Open the dashboard at http://localhost:8501
+2. Go to **"New Analysis"** tab
+3. Enter repository details:
+   - Owner: `octocat`
+   - Name: `hello-world`
+   - PR Number: `1`
+4. Click **"Launch Analysis"**
+5. Switch to **"Live Monitor"** to watch real-time progress
 
-### Running Tests
+### What Happens Behind the Scenes
 
+1. **Sandbox Creation**: New E2B microVM is created
+2. **Agent Deployment**: Security agent code deployed inside sandbox
+3. **MCP Connection**: Agent connects to GitHub MCP server
+4. **Analysis**:
+   - Fetches PR files via MCP
+   - Scans for vulnerabilities
+   - Executes exploits (safely inside sandbox)
+5. **Reporting**: Posts security report to PR via MCP
+6. **Cleanup**: Sandbox is terminated
+
+### Testing Locally
+
+Test the orchestrator directly:
 ```bash
-pytest tests/
+python orchestrator.py <repo_owner> <repo_name> <pr_number> <github_token>
 ```
 
-## Development
+Example:
+```bash
+python orchestrator.py octocat hello-world 1 ghp_xxxxxxxxxxxx
+```
+
+## 📚 Documentation
+
+- **[SETUP_GUIDE.md](SETUP_GUIDE.md)**: Complete setup instructions with troubleshooting
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Detailed architecture documentation
+- **[Demo Video](#)**: Watch CodeGuard AI in action (coming soon)
+
+## 🎯 Hackathon Highlights
+
+### Why This Architecture is Special
+
+1. **Agents Inside Sandboxes**: The security agent runs entirely within E2B microVMs, not just using them for code execution
+2. **MCP Clients in Sandboxes**: Agent uses MCP clients to connect to external tools from inside the sandbox
+3. **Real-World Tools**: Uses GitHub MCP server from Docker MCP Hub for authentic GitHub integration
+4. **Practical Use Case**: Solves real security problems for development teams
+5. **Observability**: Dashboard shows exactly what's happening inside the sandbox in real-time
+
+### Key Differentiators
+
+**Traditional Approach:**
+```
+External Orchestrator → Calls E2B → Executes Code → Returns Results
+```
+
+**CodeGuard AI:**
+```
+E2B Sandbox [Agent + MCP Client] → Connects to MCP Servers → Does Everything Inside
+```
+
+## 🔧 Development
 
 ### Adding New Vulnerability Patterns
 
-Edit `mcp_server/code_analysis.py` and add patterns to the `VulnerabilityScanner.patterns` dictionary:
+Edit `sandbox_agent/agent.py` and add patterns to `VulnerabilityScanner.patterns`:
 
 ```python
 self.patterns = {
@@ -131,24 +178,29 @@ self.patterns = {
 }
 ```
 
+### Adding More MCP Servers
+
+Edit `docker-compose.yml`:
+
+```yaml
+perplexity-mcp:
+  image: mcp/perplexity-server:latest
+  ports:
+    - "8081:8080"
+  environment:
+    - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+```
+
+Then update agent to connect to the new server.
+
 ### Extending Exploit Generation
 
-Modify `mcp_server/e2b_executor.py` to add exploit templates for new vulnerability types.
+Modify `ExploitExecutor.generate_exploit()` in `sandbox_agent/agent.py`.
 
-### Customizing Fix Generation
+## 🛡️ Security Considerations
 
-Update the prompt in `mcp_server/fix_generator.py` to adjust how OpenAI generates fixes. You can also change the model (e.g., `gpt-4-turbo-preview`, `gpt-3.5-turbo`) based on your needs.
-
-## Architecture
-
-1. **Code Analysis**: Regex-based pattern matching for common vulnerabilities
-2. **E2B Execution**: Isolated sandbox environment for safe exploit testing
-3. **Fix Generation**: LLM-powered code fix generation with explanations
-4. **GitHub Integration**: Automated PR monitoring and reporting
-
-## Security Considerations
-
-- E2B sandboxes provide isolation for exploit testing
-- All API keys should be kept secure (use environment variables in production)
-- The vulnerability scanner uses pattern matching - may produce false positives/negatives
-- Always review AI-generated fixes before applying to production code
+- **Sandbox Isolation**: E2B provides microVM-level isolation for exploit testing
+- **Temporary Execution**: Sandboxes are destroyed after each analysis
+- **API Key Security**: Keys in `config.json` (gitignored), never committed
+- **Network Isolation**: Sandboxes only connect to specified MCP servers
+- **Pattern Matching**: May produce false positives; exploit confirmation reduces this
