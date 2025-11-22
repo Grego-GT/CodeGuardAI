@@ -94,10 +94,10 @@ with tab1:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        repo_owner = st.text_input("Repository Owner", value="", placeholder="e.g., octocat")
+        repo_owner = st.text_input("Repository Owner", value="Grego-GT", placeholder="e.g., octocat")
 
     with col2:
-        repo_name = st.text_input("Repository Name", value="", placeholder="e.g., hello-world")
+        repo_name = st.text_input("Repository Name", value="CodeGuardAI", placeholder="e.g., hello-world")
 
     with col3:
         pr_number = st.number_input("PR Number", min_value=1, value=1)
@@ -130,12 +130,23 @@ with tab1:
                 """Run the analysis asynchronously."""
                 await st.session_state.orchestrator.initialize()
 
+                # Use a local list to avoid session state issues in async context
+                local_logs = []
+
                 def log_callback(message: str):
                     """Callback to capture logs."""
-                    st.session_state.logs.append({
+                    log_entry = {
                         'timestamp': datetime.now().isoformat(),
                         'message': message
-                    })
+                    }
+                    local_logs.append(log_entry)
+                    # Also update session state if available
+                    try:
+                        if 'logs' not in st.session_state:
+                            st.session_state.logs = []
+                        st.session_state.logs.append(log_entry)
+                    except Exception:
+                        pass  # Session state might not be available in async context
 
                 result = await st.session_state.orchestrator.run_agent(
                     repo_owner,
@@ -145,11 +156,12 @@ with tab1:
                     log_callback
                 )
 
-                # Update analysis
+                # Update analysis with local logs
                 st.session_state.current_analysis['status'] = 'completed'
                 st.session_state.current_analysis['completed_at'] = datetime.now().isoformat()
                 st.session_state.current_analysis['result'] = result
-                st.session_state.current_analysis['logs'] = st.session_state.logs
+                st.session_state.current_analysis['logs'] = local_logs
+                st.session_state.logs = local_logs
 
                 # Add to history
                 st.session_state.analysis_history.insert(0, st.session_state.current_analysis)
@@ -163,8 +175,10 @@ with tab1:
                     st.success("✅ Analysis complete! Check the Live Monitor tab for results.")
                 except Exception as e:
                     st.error(f"❌ Analysis failed: {str(e)}")
-                    st.session_state.current_analysis['status'] = 'failed'
-                    st.session_state.current_analysis['error'] = str(e)
+                    if st.session_state.current_analysis:
+                        st.session_state.current_analysis['status'] = 'failed'
+                        st.session_state.current_analysis['error'] = str(e)
+                        st.session_state.current_analysis['completed_at'] = datetime.now().isoformat()
 
 
 with tab2:

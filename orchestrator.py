@@ -37,32 +37,83 @@ class SandboxOrchestrator:
             log_callback("Setting up sandbox environment...")
 
         # Install required packages inside sandbox
-        setup_commands = [
-            "pip install httpx",  # For GitHub API calls
-            "pip install asyncio",  # Async support
-        ]
+        # sandbox.run_code() expects Python code, so we need to use subprocess
+        # asyncio is built-in, so we don't need to install it
+        install_code = """
+import subprocess
+import sys
+
+# Install httpx using pip
+result = subprocess.run(
+    [sys.executable, '-m', 'pip', 'install', 'httpx'],
+    capture_output=True,
+    text=True
+)
+
+if result.returncode != 0:
+    print(f"Error installing httpx: {result.stderr}")
+    sys.exit(1)
+else:
+    print("✓ httpx installed successfully")
+"""
 
         loop = asyncio.get_event_loop()
-        for cmd in setup_commands:
+        if log_callback:
+            log_callback("Running: pip install httpx")
+        try:
+            result = await loop.run_in_executor(None, sandbox.run_code, install_code)
+            # Check if installation was successful
+            if result.error:
+                error_msg = f"Failed to install package: {result.error}"
+                if log_callback:
+                    log_callback(f"❌ {error_msg}")
+                raise Exception(error_msg)
             if log_callback:
-                log_callback(f"Running: {cmd}")
-            try:
-                result = await loop.run_in_executor(None, sandbox.run_code, cmd)
-                if log_callback:
-                    log_callback(f"✓ {cmd} completed")
-            except Exception as e:
-                if log_callback:
-                    log_callback(f"⚠ Warning: {cmd} failed: {str(e)}")
+                log_callback("✓ pip install httpx completed")
+        except Exception as e:
+            if log_callback:
+                log_callback(f"❌ Error: pip install httpx failed: {str(e)}")
+            raise
+
+        # Verify httpx is installed
+        if log_callback:
+            log_callback("Verifying httpx installation...")
+        verify_code = """
+import sys
+try:
+    import httpx
+    print(f"✓ httpx version {httpx.__version__} is installed")
+except ImportError as e:
+    print(f"❌ httpx is not available: {e}")
+    sys.exit(1)
+"""
+        try:
+            result = await loop.run_in_executor(None, sandbox.run_code, verify_code)
+            # Check for errors first
+            if result.error:
+                raise Exception(f"httpx verification failed: {result.error}")
+            # Check output text if available
+            result_text = getattr(result, 'text', None) or getattr(result, 'output', None) or ''
+            if result_text and '❌' in result_text:
+                raise Exception("httpx verification failed - httpx not available")
+            if log_callback:
+                log_callback("✓ httpx verified")
+        except Exception as e:
+            if log_callback:
+                log_callback(f"❌ Verification failed: {str(e)}")
+            raise
 
     async def deploy_agent_to_sandbox(self, sandbox: Sandbox, log_callback: Optional[Callable] = None):
         """Deploy the agent code to the sandbox."""
         if log_callback:
             log_callback("Deploying agent code to sandbox...")
 
-        # Write agent code to sandbox filesystem
+        # Write agent code to sandbox filesystem using repr() to properly escape the string
+        # This ensures all quotes, newlines, and special characters are handled correctly
+        agent_code_escaped = repr(self.agent_code)
         write_code = f"""
-with open('agent.py', 'w') as f:
-    f.write('''{self.agent_code}''')
+with open('agent.py', 'w', encoding='utf-8') as f:
+    f.write({agent_code_escaped})
 print('Agent code deployed successfully')
 """
 
@@ -108,10 +159,19 @@ print('Agent code deployed successfully')
             # Deploy agent code
             await self.deploy_agent_to_sandbox(sandbox, log_callback)
 
+            # Load MCP server URL from config file
+            import json as json_lib
+            try:
+                with open('config.json', 'r') as f:
+                    app_config = json_lib.load(f)
+                    mcp_url = app_config.get('mcp', {}).get('server_url', 'http://localhost:8080')
+            except Exception:
+                mcp_url = 'http://localhost:8080'
+
             # Prepare configuration for agent
             config = {
                 'github_token': github_token,
-                'mcp_server_url': 'http://host.docker.internal:8080',  # GitHub MCP server
+                'mcp_server_url': mcp_url,
                 'repo_owner': repo_owner,
                 'repo_name': repo_name,
                 'pr_number': pr_number
@@ -123,33 +183,103 @@ print('Agent code deployed successfully')
             if log_callback:
                 log_callback("🔍 Starting security analysis inside sandbox...")
 
-            run_command = f"""
+            # Write config to a file in the sandbox for easier handling
+            config_write = f"""
+import json
+config = {json.dumps(config)}
+with open('agent_config.json', 'w') as f:
+    json.dump(config, f)
+print('Config written')
+"""
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, sandbox.run_code, config_write)
+
+            # Prepare callback for streaming logs
+            log_buffer = []
+
+            def on_stdout_callback(msg):
+                line = msg.line if hasattr(msg, 'line') else str(msg)
+                log_buffer.append(line)
+                if log_callback:
+                    log_callback(line)
+
+            def on_stderr_callback(msg):
+                line = msg.line if hasattr(msg, 'line') else str(msg)
+                log_buffer.append(f"[STDERR] {line}")
+                if log_callback:
+                    log_callback(f"⚠️ {line}")
+
+            # Run the agent using the config file
+            # First verify environment, then run agent
+            run_command = """
 import subprocess
 import sys
+import json
+import os
+
+# Verify Python environment
+print(f"Python executable: {sys.executable}")
+print(f"Python version: {sys.version}")
+print(f"Python path: {sys.path[:3]}")
+
+# Verify httpx is available
+try:
+    import httpx
+    print(f"✓ httpx is available: {httpx.__version__}")
+except ImportError as e:
+    print(f"❌ httpx import failed: {e}")
+    # Try to install it again
+    print("Attempting to install httpx...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', 'httpx'], check=True)
+    import httpx
+    print(f"✓ httpx installed: {httpx.__version__}")
+
+# Read config from file
+with open('agent_config.json', 'r') as f:
+    config_str = f.read()
 
 # Run agent with config
 result = subprocess.run(
-    [sys.executable, 'agent.py', '{config_json}'],
+    [sys.executable, 'agent.py', config_str],
     capture_output=True,
     text=True
 )
 
-print(result.stdout)
-if result.stderr:
-    print(result.stderr, file=sys.stderr)
+print('=== STDOUT ===')
+print(result.stdout if result.stdout else 'No stdout')
+print('=== STDERR ===')
+print(result.stderr if result.stderr else 'No stderr')
+print('=== RETURN CODE ===')
+print(result.returncode)
 """
 
-            loop = asyncio.get_event_loop()
-            execution = await loop.run_in_executor(None, sandbox.run_code, run_command)
+            # Run with callbacks for streaming output
+            execution = await loop.run_in_executor(
+                None,
+                lambda: sandbox.run_code(
+                    run_command,
+                    on_stdout=on_stdout_callback,
+                    on_stderr=on_stderr_callback
+                )
+            )
 
-            # Parse output
-            output = execution.text if hasattr(execution, 'text') else str(execution)
+            # Parse output from E2B execution object
+            # Check for errors first
+            if execution.error:
+                error_msg = f"Sandbox execution error: {execution.error}"
+                if log_callback:
+                    log_callback(f"❌ {error_msg}")
+                raise Exception(error_msg)
 
-            if log_callback:
-                # Stream logs from agent
-                for line in output.split('\n'):
-                    if line.strip():
-                        log_callback(line)
+            # Get text output from execution or use buffered logs
+            output = execution.text if hasattr(execution, 'text') and execution.text else None
+
+            if not output and log_buffer:
+                # Use the buffered logs from callbacks
+                output = '\n'.join(log_buffer)
+
+            if not output:
+                raise Exception("No output received from sandbox execution. The agent may have failed to run.")
 
             # Extract result JSON from output
             result = self._extract_result(output)

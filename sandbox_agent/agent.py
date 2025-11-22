@@ -18,26 +18,36 @@ class VulnerabilityScanner:
     def __init__(self):
         self.patterns = {
             'sql_injection': [
-                r'execute\s*\(\s*f["\']',
-                r'=\s*f["\'].*SELECT.*\{',
-                r'=\s*f["\'].*INSERT.*\{',
-                r'=\s*f["\'].*UPDATE.*\{',
-                r'=\s*f["\'].*DELETE.*\{',
-                r'f["\'].*WHERE.*\{.*\}',
+                r'execute\s*\(\s*f.',
+                r'=\s*f..*SELECT',
+                r'=\s*f..*INSERT',
+                r'=\s*f..*UPDATE',
+                r'=\s*f..*DELETE',
+                r'f..*WHERE.*\{',
+                r'\+.*SELECT',
+                r'\.format\(.*SELECT',
+                r'%.*SELECT',
             ],
             'xss': [
                 r'innerHTML\s*=',
                 r'document\.write\s*\(',
                 r'eval\s*\(',
+                r'<script>',
+                r'\.html\s*\(',
             ],
             'command_injection': [
                 r'os\.system\s*\(',
                 r'subprocess\.call\s*\(',
                 r'subprocess\.Popen\s*\(',
+                r'subprocess\.run\s*\(',
                 r'eval\s*\(',
+                r'exec\s*\(',
+                r'os\.popen\s*\(',
             ],
             'path_traversal': [
-                r'open\s*\(\s*["\'].*\.\./',
+                r'\.\./\.\.',
+                r'open\s*\([^)]*\.\.',
+                r'\.\./',
             ],
         }
 
@@ -149,50 +159,55 @@ class GitHubMCPClient:
 
     async def fetch_pr_files(self, repo_owner: str, repo_name: str, pr_number: int) -> List[Dict[str, Any]]:
         """Fetch PR files via GitHub MCP server."""
-        # This would use actual MCP protocol to call GitHub MCP server
-        # For now, simulating with direct GitHub API call
         import httpx
 
-        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/files"
-        headers = {
-            "Authorization": f"Bearer {self.github_token}",
-            "Accept": "application/vnd.github.v3+json"
+        # Call MCP server endpoint
+        mcp_url = f"{self.mcp_server_url}/mcp/tools/call"
+        payload = {
+            "tool": "get_pull_request_files",
+            "arguments": {
+                "owner": repo_owner,
+                "repo": repo_name,
+                "pr_number": pr_number
+            }
         }
 
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers)
+            response = await client.post(mcp_url, json=payload, timeout=30.0)
             response.raise_for_status()
-            files = response.json()
+            result = response.json()
 
-            file_changes = []
-            for file in files:
-                if file['filename'].endswith('.py'):
-                    # Fetch file content
-                    content_url = file.get('raw_url')
-                    if content_url:
-                        content_response = await client.get(content_url)
-                        file_changes.append({
-                            'file': file['filename'],
-                            'content': content_response.text,
-                            'status': file['status']
-                        })
+            if result.get('success'):
+                return result.get('files', [])
+            else:
+                raise Exception(f"MCP call failed: {result.get('error')}")
 
-            return file_changes
 
     async def post_comment(self, repo_owner: str, repo_name: str, pr_number: int, comment: str) -> Dict[str, Any]:
         """Post comment to PR via GitHub MCP server."""
         import httpx
 
-        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments"
-        headers = {
-            "Authorization": f"Bearer {self.github_token}",
-            "Accept": "application/vnd.github.v3+json"
+        # Call MCP server endpoint
+        mcp_url = f"{self.mcp_server_url}/mcp/tools/call"
+        payload = {
+            "tool": "create_issue_comment",
+            "arguments": {
+                "owner": repo_owner,
+                "repo": repo_name,
+                "issue_number": pr_number,
+                "body": comment
+            }
         }
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json={"body": comment})
+            response = await client.post(mcp_url, json=payload, timeout=30.0)
             response.raise_for_status()
-            return {"success": True, "comment_url": response.json().get('html_url')}
+            result = response.json()
+
+            if result.get('success'):
+                return result
+            else:
+                raise Exception(f"MCP call failed: {result.get('error')}")
 
 
 class SecurityAgent:
