@@ -18,6 +18,8 @@ Traditional security scanners flood developers with hundreds of potential vulner
 
 CodeGuard AI runs security agents entirely inside E2B microVMs, where exploits can be safely tested without risk. The agent uses MCP clients to seamlessly connect to GitHub, automatically fetching PR files, analyzing code, executing exploit tests, and posting detailed security reports with fix suggestions directly to pull requests.
 
+![CodeGuard AI Workflow](/assets/CodeGuardAI-diagram.png)
+
 ### Architecture
 
 ```
